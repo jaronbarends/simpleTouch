@@ -1,0 +1,52 @@
+* {
+	/* disable iPhone popupjes voor select, open etc */
+	-webkit-touch-callout: none;
+	/*Disable selection/Copy of UIWebView*/
+	-webkit-user-select: none;
+}
+
+body {
+	font-family: 'trebuchet ms';
+	font-size: 12px;
+}
+
+.test {
+	border-bottom: 1px solid #ccc;
+	padding: 10px;
+}
+
+#toucharea {
+	margin: 0 auto 0;
+	height: 160px;
+	background: #ccc;
+	border: 2px dotted #999;
+	-moz-border-radius: 6px;
+	-webkit-border-radius: 6px;
+	border-radius: 6px;
+}
+td {
+	width: 75px;
+	height: 1.5em;
+	border: 1px solid #ccc;
+}
+.th {
+	padding-right: 0.5em;
+	text-align: right;
+}
+.feedback {
+	padding: 5px;
+	background: #ffc;
+}
+
+.action {
+	display: inline-block;
+	margin-top: 5px;
+	border: 1px solid #ccc;
+	padding: 2px;
+	width: 45%;
+	border-radius: 2px;
+	text-align: center;
+}
+#clear:hover {
+	text-decoration: none;
+}

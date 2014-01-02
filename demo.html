@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!-- Conditional comment for mobile ie7 http://blogs.msdn.com/b/iemobile/ -->
+<!--[if IEMobile 7 ]>		<html class="no-js iem7"> <![endif]-->
+<!--[if (gt IEMobile 7)|!(IEMobile)]><!--> <html class="no-js"> <!--<![endif]-->
+	<head>
+		<meta charset="utf-8">
+		
+		<title>TouchEvents</title>
+		
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+		
+		<link rel="stylesheet" href="css/reset.min.css">
+		<link rel="stylesheet" href="css/touchtest.css">
+		
+		<script src="js/modernizr.custom.js"></script>
+		<script src="js/jquery.min.js"></script>
+	</head>
+	
+	<body>
+		
+		<div class="test swipe">
+			<div id="toucharea">trigger on move</div>
+			<a class="action" href="#" id="clear">clear log</a>
+			<a class="action" href="touchEvents.html" id="refresh">refresh page</a>
+		</div>
+		
+		<div class="feedback" id="varlog">
+			<table>
+				<tr>
+					<td class="th">Last event:</td>
+					<td id="lasteventlog"></td>
+					<td class="th">Phase:</td>
+					<td id="phaselog"></td>
+				</tr>
+			</table>
+			
+			<table id="touchlog">
+				<tr>
+					<th>x</th>
+					<th>y</th>
+					<th>dir</th>
+					<th>dist</th>
+				</tr>
+				<tr>
+					<td id="t0-x"></td>
+					<td id="t0-y"></td>
+					<td id="t0-dir"></td>
+					<td id="t0-dist"></td>
+				</tr>
+			</table>
+		</div>
+		<div class="feedback" id="log"></div>
+		
+		<script src="js/jquery.simpleTouch.js"></script>
+		<script src="js/initTouch.js"></script>
+	</body>
+</html>
+

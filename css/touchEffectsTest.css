@@ -1,0 +1,39 @@
+.swipeable {
+	border: 1px solid #f00;
+	width: 300px;
+}
+
+.swipeable li {
+	border-bottom: 1px dotted #333;
+}
+
+.swipeSleeve {
+	position: relative;
+	height: 80px;
+}
+
+.swipeContainer {
+	position: absolute;
+	/*width: 100%;*/
+	height: 100%;
+	background: transparent url(images/squares.png);
+}
+
+.swipeContent {
+	/*padding: 20px;*/
+	height: 80px;
+	/*width: 100%;*/
+	width: 400px;
+}
+
+.content1,
+.content2 {
+	float: left;
+	/*display: inline-block;*/
+	width: 200px;
+	height: 100%;
+	background: rgba(255,200,0,0.5);
+}
+.content2 {
+	background: rgba(255,180,0,0.4);
+}
