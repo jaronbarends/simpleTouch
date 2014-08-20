@@ -1,18 +1,13 @@
 /*
  * simpleTouch - jQuery Plugin
  *
- * This jQuery plugin will only run on devices running Mobile Webkit based browsers (iOS 2.0+, android 2.2+)
  */
-;(function($) {
+(function($) {
 
-	'use strict';
+	var pluginName = 'simpleTouch';
 	
-	$.fn.simpleTouch = function(options) {
-		if (!this) {
-			return false;
-		}
-
-		var $this;
+	$.fn[pluginName] = function(options) {
+		if (!this) return false;
 		
 		// Default thresholds & swipe functions
 		var defaults = {
@@ -25,6 +20,7 @@
  				"none" : the page will not scroll when user swipes.
  				"horizontal" : will force page to scroll on horizontal swipes.
  				"vertical" : will force page to scroll on vertical swipes.
+ 				TODO: IK MIS HIER "always"
 			*/
 		};
 		
@@ -45,19 +41,17 @@
 			PHASE_END = "end",
 			PHASE_CANCEL = "cancel";
 		
+		// vars for page scrolling
+		var allowScrollHor = true,
+			allowScrollVert = true;
+		
 		// vars vor keeping track of events statuses
 		var swipeEventFired = false,
 			touchEnded = true;
 			
-		// tap vars
-		var touchStartTime,
-			TAP_MAX_DURATION = 100;/* max duration in msec between touch and release to trigger tap */
-		
 		//object to pass data around
 		var data = {};
 		
-
-
 		//-- let's get started :) --
 		
 		if (options) {
@@ -65,354 +59,145 @@
 		}
 		
 		return this.each(function() {
-
-			/*-- Start helper functions --*/
-
-				
-				/**
-				* get the x and y position of a member of the event.touches array
-				* @param {object} touch element in the event.touches array
-				* @returns {object} {x,y}
-				*/
-				var getTouchPos = function(touch) {
-					var p = {
-						x: touch.pageX,
-						y: touch.pageY
-					};
-
-					return p;
-				};
-				
-				/**
-				* get the gesture's direction
-				* @param {string} varname Description
-				* @returns {string} contstant RIGHT, LEFT, DOWN or UP
-				*/
-				var getDirection = function(start, end) {
-					var dx = end.x - start.x;
-					var dy = end.y - start.y;
-					if (Math.abs(dx) >= Math.abs(dy)) {
-						//we're moving horizontally
-						return ( (dx > 0) ? RIGHT : LEFT);
-					}
-					return ( (dy > 0) ? DOWN : UP);
-				};
-				
-				/**
-				* get object containing distance between start and end point
-				* @param {object} start This move's starting position {x,y}
-				* @param {object} end This move's current position {x,y}
-				* @returns {object} {x,y}
-				*/
-				var getDistanceObj = function(start, end) {
-					var x = end.x - start.x;
-					var y = end.y - start.y;
-					return {x:x, y:y};
-				};
-				
-				/**
-				* check if the current distance is bigger than the swipe threshold
-				* @returns {boolean}
-				*/
-				var distanceHasPassedThreshold = function() {
-					var distance = data.touch.distance;
-					var dx = Math.abs(distance.x);
-					var dy = Math.abs(distance.y);
-					return (Math.max(dx,dy) >= defaults.swipeThreshold);
-				};
-				
-
-			/*-- End helper functions --*/
 			
-
-			/*-- Start data object functions --*/
-
-
-				/**
-				* Initialize vars to keep track of what's going on in a touch cycle
-				* @returns {undefined}
-				*/
-				var initEvtVars = function() {
-					swipeEventFired = false;
-				};
-				
-				/**
-				* put all event data into data object
-				* @param {event} evt The event that occurred
-				* @returns {undefined}
-				*/
-				var setEventData = function(evt) {
-					var touch = evt.touches[0],
-						tObj = data.touch,
-						propName;
-
-					tObj.end = getTouchPos(touch);
-					tObj.distance = getDistanceObj(tObj.start, tObj.end);
-					tObj.direction = getDirection(tObj.start, tObj.end);
-					data.touch = tObj;
-
-					//we're only interested in one finger; put all of its data in the "root" of the data object for easy access
-					for (propName in data.touch) {
-						data[propName] = data.touch[propName];
-					}
-					
-					//now add general evt vars to data object
-					data.originalEvent = evt;
-				};
-				
-				/**
-				* Set the new touch phase (startMove, move, swipe, end, etc)
-				* @param {string} phs The name of the new phase
-				* @returns {undefined}
-				*/
-				var setPhase = function(phs) {
-					//sets the new phase
-					data.prevPhase = data.phase;
-					data.phase = phs;
-					if (phs === PHASE_CANCEL || phs === PHASE_END) {
-						touchEnded = true;
-					}
-				};
+			/*-- Start handlers -- --*/
 			
+				function touchStartHandler(evt) {
 
-			/*-- End data object functions --*/
-
-
-			
-			/*-- Start trigger functions --*/
-			
-				
-				/**
-				* trigger a touch event
-				* with name format eventName.touchEvent
-				* and with corresponding data object
-				* @param {string} evtName The name of the event to trigger
-				* @returns {undefined}
-				*/
-				var triggerTouchEvent = function(evtName) {
-					//suffix evtName with namespace
-					evtName += '.touchEvent';
-					$this.trigger(evtName, data);
-				};
-				
-				
-				/**
-				* trigger appropriate swipe events
-				* @param {event} evt The event that occurred (e.g. touchMove, touchEnd, ...)
-				* @returns {undefined}
-				*/
-				var triggerSwipeEvents = function(evt) {
-					//trigger all appropriate swipeHandlers
-					swipeEventFired = true;
-
-					//trigger general swipe event (can be used for stuff you want to do on any swipe)
-					triggerTouchEvent('swipe');
-					
-					//trigger direction specific event
-					var direction = data.touch.direction;
-					var evts = [];
-
-					evts[LEFT] = 'swipeLeft';
-					evts[RIGHT] = 'swipeRight';
-					evts[UP] = 'swipeUp';
-					evts[DOWN] = 'swipeDown';
-
-					triggerTouchEvent(evts[direction]);
-				};
-				
-
-			/*-- End trigger functions --*/
-			
-
-			/**
-			* Check if default browser scrolling behaviour has to be cancelled during touchmove
-			* @param {event} evt The touchmove event
-			* @returns {undefined}
-			*/
-			var handleDefaultScroll = function(evt) {
-				if( defaults.allowPageScroll === NONE ) {
-					evt.preventDefault();
-				} else {
-					var auto = (defaults.allowPageScroll === AUTO);
-					
-					switch(data.touch.direction) {
-						case LEFT :
-							if ( (defaults.swipeLeft && auto) || (!auto && defaults.allowPageScroll !== HORIZONTAL)) {
-								evt.preventDefault();
-							}
-							break;
-						
-						case RIGHT :
-							if ( (defaults.swipeRight && auto) || (!auto && defaults.allowPageScroll !== HORIZONTAL)) {
-								evt.preventDefault();
-							}
-							break;
-
-						case UP :
-							if ( (defaults.swipeUp && auto) || (!auto && defaults.allowPageScroll !== VERTICAL)) {
-								evt.preventDefault();
-							}
-							break;
-						
-						case DOWN :	
-							if ( (defaults.swipeDown && auto) || (!auto && defaults.allowPageScroll !== VERTICAL)) {
-								evt.preventDefault();
-							}
-							break;
-					}
-				}
-				
-			};
-
-
-
-
-
-			/*-- Start tap functions -- --*/
-
-
-				/**
-				* Start a tap
-				* Register its timestamp so we can check later if the touch was short enough to be a tap
-				* @param {event} evt The touch event
-				* @returns {undefined}
-				*/
-				var startTap = function(evt) {
-					touchStartTime = new Date().getTime();
-				};
-				
-
-				/**
-				* Check if the touch's duration was short enough to count as a tap
-				* @param {evt} event The touch end event
-				* @returns {undefined}
-				*/
-				var checkTap = function(evt) {
-					var touchEndTime = new Date().getTime();
-					if ((touchEndTime - touchStartTime) <= TAP_MAX_DURATION) {
-						triggerTouchEvent('tap');
-					}
-				};
-				
-
-			/*-- End tap functions -- --*/
-
-
-
-			/*-- Start touch handlers -- --*/
-			
-				
-				/**
-				* Check if touch status has changed; if so, trigger touchStatus event
-				* @param {event} varname The event causing the status change (touchstart, touchmove, etc)
-				* @returns {undefined}
-				*/
-				var triggerStatusHandler = function(evt) {
-					//update status
-					if (data.phase !== data.prevPhase) {
-						triggerTouchEvent('touchStatus');
-					}
-				};
-			
-
-				/**
-				* handle Touch start
-				* @param {event} evt Touch event
-				* @returns {undefined}
-				*/
-				var touchStartHandler = function(evt) {
 					if (touchEnded) {
-						//then it's really the start of a new touch (otherwise, a finger was added to an existing touch cycle)
+						//then it's really the start of a new touch
 						touchEnded = false;
 						initEvtVars();
 						setPhase(PHASE_START_MOVE);
-						startTap(evt);
+					} else {
+						//a finger was added to an existing touch
 					}
-
-					//get the starting coordinates of the first finger's touch (we're going to keep track of one touch only)
-					data.touch = {
-						start: getTouchPos(evt.touches[0])
-					};
+			
+					var touch = evt.touches[0];
+					data.start = getTouchPos(touch);
 					
 					//now process the other event variables
 					setEventData(evt);
 					triggerStatusHandler(evt);
-				};
+					
+				}
 				
-				
-				/**
-				* handle touchMove event
-				* trigger appropriate events (move, swipe or swipeMove)
-				* @param {event} evt The touchmove event
-				* @returns {undefined}
-				*/
-				var touchMoveHandler = function(evt) {
+				function touchMoveHandler(evt) {
 					
 					setEventData(evt);
 					
-					//check if we need to prevent default event (page scroll) or not
+					//Check if we need to prevent default event (page scroll) or not
 					handleDefaultScroll(evt);
 					
-					//if we trigger whilst dragging, not on touch end, then calculate now...
+					//If we trigger whilst dragging, not on touch end, then calculate now...
 					if (!defaults.triggerOnTouchEnd && distanceHasPassedThreshold()) {
 						// if the user swiped more than the minimum length, perform the appropriate action
 						//2 possibilities: if swipeEvents haven't been fired yet, fire swipeHandlers; otherwise trigger swipeMove
 						setPhase(PHASE_SWIPE);
 						
 						if (!swipeEventFired) {
-							triggerSwipeEvents(evt);
+							triggerSwipeHandlers(evt);
 						} else {
 							triggerTouchEvent('swipeMove');
 						}
 					} else {
 						setPhase(PHASE_MOVE);
 					}
-					triggerTouchEvent('move');
+
 					triggerStatusHandler(evt);
-				};
+				}
 				
-				
-				/**
-				* handle touchEnd event
-				* checks if tap or swipe event has to be triggered
-				* @param {event} evt The touchend event
-				* @returns {undefined}
-				*/
-				var touchEndHandler = function(evt) {
+				function touchEndHandler(evt) {
 					evt.preventDefault();
-					
+
+					//check if this is really the end of the touch, or that only the number of touching fingers has changed
 					if (!evt.touches.length) {
-						//it's really the end of this touch, or we want to end the touch when touchCount changes
+						//it's really the end of this touch, and not just one finger being lifted
 						//we must not update the event data, because we want it to contain the last know position
 						setPhase(PHASE_END);
 						
-						checkTap(evt);
-						
 						if (!distanceHasPassedThreshold()) {
 							setPhase(PHASE_CANCEL);
-							triggerTouchEvent('swipeCancel');
 						} else if (defaults.triggerOnTouchEnd) {
-							triggerSwipeEvents(evt);
+							triggerSwipeHandlers(evt);
 						}
 						
 						triggerStatusHandler(evt);
 					}
-				};
+				}
 			
-			/*-- End touch handlers -- --*/
+				function triggerStatusHandler(evt) {
+					//update status
+					if (data.phase != data.prevPhase) {
+						triggerTouchEvent('touchStatus');
+					}
+				}
 			
+			/*-- End handlers -- --*/
+			
+			
+			/*-- Start data object functions --*/
 
-
-			/*-- Start mouse event functions --*/
+				function initEvtVars() {
+					swipeEventFired = false;
+					data = {};
+				}
 				
+				function setEventData(evt) {
+					//processes all relevant data for an event
+					var touch = evt.touches[0];
 
-				/**
-				* add stuff to a mouse event to make it look like a touch event
-				* @param {function} touchEventHandler The touch event handler to call
-				* @param {event} evt The original mouse event
-				* @returns {undefined}
-				*/
-				var mimicTouchEvent = function(touchEventHandler, evt) {
+					//data.start has been set in touchStartHandler; make sure not to override it here
+					//because this function gets called upon every event
+					data.end = getTouchPos(touch);
+					data.distance = getDistanceObj(data.start, data.end);
+					data.direction = getDirection(data.start, data.end);
+
+					//now add general evt vars to data object
+					data.originalEvent = evt;
+				}
+				
+				function setPhase(phs) {
+					//sets the new phase
+					data.prevPhase = data.phase;
+					data.phase = phs;
+					if (phs === PHASE_CANCEL || phs === PHASE_END) {
+						touchEnded = true;
+					}
+				}
+			
+			/*-- End data object functions --*/
+			
+			/*-- Start trigger functions --*/
+			
+				function triggerTouchEvent(evtName) {
+					//suffix evtName with namespace
+					evtName += '.touchEvent';
+					$this.trigger(evtName, data);
+				}
+				
+				function triggerSwipeHandlers(evt) {
+					//trigger all appropriate swipeHandlers
+					swipeEventFired = true;
+					
+					//trigger catch all event handler
+					triggerTouchEvent('swipe');
+					
+					//trigger direction specific event handlers
+					var direction = data.direction,
+						evts = [];//TODO: kan deze niet maar 1x gedefinieerd worden?
+						evts[LEFT] = 'swipeLeft';
+						evts[RIGHT] = 'swipeRight';
+						evts[UP] = 'swipeUp';
+						evts[DOWN] = 'swipeDown';
+						triggerTouchEvent(evts[direction]);
+				}
+				
+			/*-- End trigger functions --*/
+			
+			/*-- Start mousefunctions --*/
+				function mimicTouchEvent(touchEventHandler, evt) {
+					//adds stuff to mouse event to make it look like a touch event
 					var touches = [];
 					if (touchEventHandler !== touchEndHandler) {
 						touches.push({
@@ -423,77 +208,125 @@
 					evt.touches = touches;
 					//now mimic a touchStart event
 					touchEventHandler.call(this, evt);
-				};
-				
-				/**
-				* make mousemove event look like touchmove event
-				* @param {event} evt The original mousemove event
-				* @returns {undefined}
-				*/
-				var mousemoveHandler = function(evt) {
-					mimicTouchEvent(touchMoveHandler, evt);
-				};
-				
-				/**
-				* make mousedown event look like touchstart event
-				* and bind mousemove event to $this (so mousemoveHandler will only be called after mouse down)
-				* @param {event} evt The original mouse down event
-				* @returns {undefined}
-				*/
-				var mousedownHandler = function(evt) {
-					evt.preventDefault();//this is neccessary to prevent the browser's default dragging behaviour!
-					$this.bind('mousemove', mousemoveHandler);
-					mimicTouchEvent(touchStartHandler, evt);
-				};
-				
-				/**
-				* make mouseup event look like touchend event
-				* and unbind mousemove event from $this (so mousemoveHandler won't be called anymore)
-				* @param {event} evt The original mouse down event
-				* @returns {undefined}
-				*/
-				var mouseupHandler = function(evt) {
-					$(this).unbind('mousemove', mousemoveHandler);
-					mimicTouchEvent(touchEndHandler, evt);
-				};
-
-
-			/*-- End mouse event functions --*/
-			
-
-
-			/*-- Start initialization functions --*/
-			
-			/**
-			* initialize the plugin
-			* @param {dom element} that The element(s) the plugin is called upon
-			* @returns {undefined}
-			*/
-			var init = function(that) {
-				$this = $(that);
-				if (window.hasOwnProperty('ontouchstart')) {
-					try {
-						that.addEventListener("touchstart", touchStartHandler, false);
-						that.addEventListener("touchmove", touchMoveHandler, false);
-						that.addEventListener("touchend", touchEndHandler, false);
-						that.addEventListener("touchcancel", touchEndHandler, false);
-					} catch(ignore) {
-						//touch not supported; give param the name ignore to make it clear we're not doing anything with it
-					}
-				} else {
-					//bind stuff to mouse events
-					$this.bind("mousedown", mousedownHandler);
-					$this.bind("mouseup", mouseupHandler);
 				}
-			};
+				
+				function mousemoveHandler(evt) {
+					mimicTouchEvent(touchMoveHandler, evt);
+				}
+				
+				function mousedownHandler(evt) {
+					evt.preventDefault();//this is neccessary to prevent the browser's default dragging behaviour!
+					//bind movemouse; we do it here to prevent too much move events firing
+					$this.on('mousemove', mousemoveHandler);
+					mimicTouchEvent(touchStartHandler, evt);
+				}
+				
+				function mouseupHandler(evt) {
+					//unbind movemouse, so we don't have to keep tracking when we don't need it
+					$this.off('mousemove', mousemoveHandler);
+					mimicTouchEvent(touchEndHandler, evt);
+				}
+			/*-- End mousefunctions --*/
+			
+			
+			/*
+			 * Checks direction of the swipe and the value allowPageScroll to see if we should allow or prevent the default behaviour from occurring.
+			 * This will essentially allow page scrolling or not when the user is swiping on a touchSwipe object.
+			 */
+			function handleDefaultScroll(evt) {
+				if( defaults.allowPageScroll == NONE ) {
+					evt.preventDefault();
+				} else {
+					var auto = (defaults.allowPageScroll == AUTO);
+					
+					switch(data.direction) {
+						case LEFT :
+							if ( (defaults.swipeLeft && auto) || (!auto && defaults.allowPageScroll!=HORIZONTAL)) {
+								evt.preventDefault();
+							}
+							break;
+						
+						case RIGHT :
+							if ( (defaults.swipeRight && auto) || (!auto && defaults.allowPageScroll!=HORIZONTAL)) {
+								evt.preventDefault();
+							}
+							break;
 
-			/*-- Start initialization functions --*/
+						case UP :
+							if ( (defaults.swipeUp && auto) || (!auto && defaults.allowPageScroll!=VERTICAL)) {
+								evt.preventDefault();
+							}
+							break;
+						
+						case DOWN :	
+							if ( (defaults.swipeDown && auto) || (!auto && defaults.allowPageScroll!=VERTICAL)) {
+								evt.preventDefault();
+							}
+							break;
+					}
+				}
+				
+			}
+			
+			/*-- Start helper functions --*/
+			
+				function getTouchPos(touch) {
+					//returns the x and y position of a member of the event.touches array
+					var p = {
+						x: touch.pageX,
+						y: touch.pageY
+					}
+					return p;
+				}
+			
+				function getDirection(start, end) {
+					var dx = end.x - start.x;
+					var dy = end.y - start.y;
+					if (Math.abs(dx) >= Math.abs(dy)) {
+						//we're moving horizontally
+						return ( (dx > 0) ? RIGHT : LEFT);
+					} else {
+						return ( (dy > 0) ? DOWN : UP);
+					}
+				}
+				
+				function getDistanceObj(start, end) {
+					var x = end.x - start.x;
+					var y = end.y - start.y;
+					return {x:x, y:y};
+				}
+				
+				function getDistance(point) {
+					return Math.sqrt(Math.pow(point.x,2) + Math.pow(point.y,2));
+				}
+				
+				function distanceHasPassedThreshold() {
+					var distance = data.distance,
+						dx = Math.abs(distance.x),
+						dy = Math.abs(distance.y);
 
-
-			//do the actual initialization
-			init(this);
+					return (Math.max(dx,dy) >= defaults.swipeThreshold);
+				}
+				
+			/*-- End helper functions --*/
+			
+			/*-- Start initialization --*/
+			var $this = $(this);
+			if ('ontouchstart' in window) {
+				try {
+					this.addEventListener("touchstart", touchStartHandler, false);
+					this.addEventListener("touchmove", touchMoveHandler, false);
+					this.addEventListener("touchend", touchEndHandler, false);
+				} catch(e) {
+					//touch not supported
+				}
+			} else {
+				//bind stuff to mouse events
+				$this.on("mousedown", mousedownHandler);
+				$this.on("mouseup", mouseupHandler);
+			}
 				
 		});
 	};
-
+	
 })(jQuery);
