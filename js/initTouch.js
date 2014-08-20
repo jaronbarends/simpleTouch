@@ -67,11 +67,14 @@
 				allowPageScroll: 'none'
 			}
 			$('#toucharea').simpleTouch(options)
+				.bind('swipe.touchEvent', swipeHandler);
+				/*
 				.bind('touchStatus.touchEvent', touchStatusHandler)
 				.bind('swipe.touchEvent', swipeHandler)
 				.bind('swipeMove.touchEvent', swipeMoveHandler)
 				.bind('tap.touchEvent', tapHandler)
 				.bind('doubleTap.touchEvent', doubleTapHandler);
+				*/
 		}
 		
 		function initVars() {
