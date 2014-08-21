@@ -36,10 +36,12 @@
 			}
 
 			$('#toucharea').simpleTouch(options)
+				//*
 				.on('touchStatusChange.'+pluginName, touchStatusHandler)
 				.on('move.'+pluginName, moveHandler)
 				.on('swipe.'+pluginName, swipeHandler)
 				.on('swipeMove.'+pluginName, swipeMoveHandler);
+				//*/
 		}
 		
 	//-- End init functions --

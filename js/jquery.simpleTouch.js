@@ -8,6 +8,8 @@
 	
 	$.fn[pluginName] = function(options) {
 		if (!this) return false;
+
+		var $this = $(this);
 		
 		// Default thresholds & swipe functions
 		var fsDefaults = {
@@ -51,7 +53,7 @@
 			fsTouchEnded = true;
 			
 		//object to pass data around
-		var fsData = {};
+		var fsData;
 		
 		//-- let's get started :) --
 		
@@ -63,12 +65,17 @@
 			
 			/*-- Start handlers -- --*/
 			
-				function touchStartHandler(evt) {
+				/**
+				* Handle the start of a touch
+				* @param {event} evt A touchstart event or an enhanced mousedown event containing some of a touchstart event's properties
+				* @returns {undefined}
+				*/
+				var touchStartHandler = function(evt) {
 
 					if (fsTouchEnded) {
 						//then it's really the start of a new touch
 						fsTouchEnded = false;
-						initEvtVars();
+						resetEvtVars();
 						setPhase(fsC.PHASE_START_MOVE);
 					} else {
 						//a finger was added to an existing touch
@@ -79,12 +86,17 @@
 					
 					//now process the other event variables
 					setEventData(evt);
-					triggerStatusHandler(evt);
+					triggerStatusChangeEvent();
 					
-				}
+				};//touchStartHandler
 				
-				function touchMoveHandler(evt) {
-					
+
+				/**
+				* Handle a touch move
+				* @param {event} evt A touchmove event or an enhanced mousemove event containing some of a touchmove event's properties
+				* @returns {undefined}
+				*/
+				var touchMoveHandler = function(evt) {
 					setEventData(evt);
 					
 					//Check if we need to prevent default event (page scroll) or not
@@ -97,19 +109,25 @@
 						setPhase(fsC.PHASE_SWIPE);
 						
 						if (!fsSwipeEventFired) {
-							triggerSwipeHandlers(evt);
+							triggerSwipeEvents();
 						} else {
-							triggerTouchEvent(fsC.EVENT_SWIPE_MOVE);
+							triggerSimpleTouchEvent(fsC.EVENT_SWIPE_MOVE);
 						}
 					} else {
 						setPhase(fsC.PHASE_MOVE);
 					}
-					triggerTouchEvent(fsC.EVENT_MOVE);
+					triggerSimpleTouchEvent(fsC.EVENT_MOVE);
 
-					triggerStatusHandler(evt);
-				}
+					triggerStatusChangeEvent();
+				};
 				
-				function touchEndHandler(evt) {
+				
+				/**
+				* handle the end of a touch - check if it's really the end, or just one finger removed
+				* @param {event} evt A touchend event or an enhanced mouseup event containing some of a touchend event's properties
+				* @returns {undefined}
+				*/
+				var touchEndHandler = function(evt) {
 					evt.preventDefault();
 
 					//check if this is really the end of the touch, or that only the number of touching fingers has changed
@@ -121,31 +139,49 @@
 						if (!distanceHasPassedThreshold()) {
 							setPhase(fsC.PHASE_CANCEL);
 						} else if (fsDefaults.triggerOnTouchEnd) {
-							triggerSwipeHandlers(evt);
+							triggerSwipeEvents();
 						}
 						
-						triggerStatusHandler(evt);
+						triggerStatusChangeEvent();
 					}
-				}
+				};
 			
-				function triggerStatusHandler(evt) {
+				
+				/**
+				* when current status changes, trigger a change status event
+				* @returns {undefined}
+				*/
+				var triggerStatusChangeEvent = function() {
 					//update status and send statusChange event when status changed
 					if (fsData.phase != fsData.prevPhase) {
-						triggerTouchEvent(fsC.EVENT_TOUCH_STATUS_CHANGE);
+						triggerSimpleTouchEvent(fsC.EVENT_TOUCH_STATUS_CHANGE);
 					}
-				}
+				};
 			
 			/*-- End handlers -- --*/
 			
 			
 			/*-- Start fsData object functions --*/
 
-				function initEvtVars() {
+				/**
+				* reset vars that change on every touch-cycle
+				* @param {event} evt Description
+				* @returns {undefined}
+				*/
+				var resetEvtVars = function() {
 					fsSwipeEventFired = false;
-					fsData = {};
-				}
+					fsData = {
+						trackpoints: []
+					};
+				};
 				
-				function setEventData(evt) {
+				
+				/**
+				* update the fsData object with current data
+				* @param {event} evt Description
+				* @returns {undefined}
+				*/
+				var setEventData = function(evt) {
 					//processes all relevant data for an event
 					var touch = evt.touches[0];
 
@@ -155,36 +191,56 @@
 					fsData.distance = getDistanceObj(fsData.start, fsData.end);
 					fsData.direction = getDirection(fsData.start, fsData.end);
 
+					addTrackPoint();
+					fsData.speed = getCurrentSpeed();
+
 					//now add general evt vars to fsData object
 					fsData.originalEvent = evt;
-				}
+				};
 				
-				function setPhase(phs) {
+				
+				/**
+				* set the current phase in cycle (i.e. start, move, swipe)
+				* @param {string} phs The current phase. Must be defined in fsC
+				* @returns {undefined}
+				*/
+				var setPhase = function(phs) {
 					//sets the new phase
 					fsData.prevPhase = fsData.phase;
 					fsData.phase = phs;
 					if (phs === fsC.PHASE_CANCEL || phs === fsC.PHASE_END) {
 						fsTouchEnded = true;
 					}
-				}
+				};
 			
 			/*-- End fsData object functions --*/
 
 			
 			/*-- Start trigger functions --*/
 			
-				function triggerTouchEvent(evtName) {
+				
+				/**
+				* trigger an event with this plugin's namespace (i.e. swipeMove.simplePlugin, etc)
+				* @param {string} evtName The (non-namespaced) name of the event to fire
+				* @returns {undefined}
+				*/
+				var triggerSimpleTouchEvent = function(evtName) {
 					//suffix evtName with namespace
 					evtName += '.'+pluginName;
 					$this.trigger(evtName, fsData);
-				}
+				};
 				
-				function triggerSwipeHandlers(evt) {
+				
+				/**
+				* trigger swipeEvents - 'swipe' and the appropriate direction-events ('swipeLeft' etc)
+				* @returns {undefined}
+				*/
+				var triggerSwipeEvents = function() {
 					//trigger all appropriate swipeHandlers
 					fsSwipeEventFired = true;
 					
 					//trigger catch all event handler
-					triggerTouchEvent('swipe');
+					triggerSimpleTouchEvent('swipe');
 					
 					//trigger direction specific event handlers
 					var direction = fsData.direction,
@@ -193,13 +249,20 @@
 						evts[fsC.RIGHT] = 'swipeRight';
 						evts[fsC.UP] = 'swipeUp';
 						evts[fsC.DOWN] = 'swipeDown';
-						triggerTouchEvent(evts[direction]);
-				}
+						triggerSimpleTouchEvent(evts[direction]);
+				};
 				
 			/*-- End trigger functions --*/
 			
 			/*-- Start mousefunctions --*/
-				function mimicTouchEvent(touchEventHandler, evt) {
+				
+				/**
+				* enhance a mouse event to make it look like a touch event and then call the corresponding touchEventHandler
+				* @param {function} touchEventHandler The handler function to call (like touchendHandler for mouseup)
+				* @param {event} evt A mouse event
+				* @returns {undefined}
+				*/
+				var mimicTouchEvent = function(touchEventHandler, evt) {
 					//adds stuff to mouse event to make it look like a touch event
 					var touches = [];
 					if (touchEventHandler !== touchEndHandler) {
@@ -211,32 +274,53 @@
 					evt.touches = touches;
 					//now mimic a touchStart event
 					touchEventHandler.call(this, evt);
-				}
+				};
 				
-				function mousemoveHandler(evt) {
+				
+				/**
+				* handle a mousemove event - enhance and then handle as touchmove
+				* @param {event} evt Description
+				* @returns {undefined}
+				*/
+				var mousemoveHandler = function(evt) {
 					mimicTouchEvent(touchMoveHandler, evt);
-				}
+				};
 				
-				function mousedownHandler(evt) {
+				
+				/**
+				* handle a mousedown event - enhance and then handle as touchstart
+				* @param {event} evt Description
+				* @returns {undefined}
+				*/
+				var mousedownHandler = function(evt) {
 					evt.preventDefault();//this is neccessary to prevent the browser's default dragging behaviour!
 					//bind movemouse; we do it here to prevent too much move events firing
 					$this.on('mousemove', mousemoveHandler);
 					mimicTouchEvent(touchStartHandler, evt);
-				}
+				};
 				
-				function mouseupHandler(evt) {
+				
+				/**
+				* handle a mouseup event - enhance and then handle as touchend
+				* @param {event} evt Description
+				* @returns {undefined}
+				*/
+				var mouseupHandler = function(evt) {
 					//unbind movemouse, so we don't have to keep tracking when we don't need it
 					$this.off('mousemove', mousemoveHandler);
 					mimicTouchEvent(touchEndHandler, evt);
-				}
+				};
 			/*-- End mousefunctions --*/
 			
 			
-			/*
-			 * Checks direction of the swipe and the value allowPageScroll to see if we should allow or prevent the default behaviour from occurring.
-			 * This will essentially allow page scrolling or not when the user is swiping on a touchSwipe object.
-			 */
-			function handleDefaultScroll(evt) {
+				
+			/**
+			* Checks direction of the swipe and the value allowPageScroll to see if we should allow or prevent the default behaviour from occurring.
+			* This will essentially allow page scrolling or not when the user is swiping on a touchSwipe object.
+			* @param {event} evt A touchmove event or an enhanced mousemove event
+			* @returns {undefined}
+			*/
+			var handleDefaultScroll = function(evt) {
 				if( fsDefaults.allowPageScroll == fsC.NONE ) {
 					evt.preventDefault();
 				} else {
@@ -269,20 +353,31 @@
 					}
 				}
 				
-			}
+			};
 			
 			/*-- Start helper functions --*/
 			
-				function getTouchPos(touch) {
-					//returns the x and y position of a member of the event.touches array
+				/**
+				* returns the x and y position of a member of the event.touches array
+				* @param {object} touch An element touch event's touches array
+				* @returns {object} Object {x,y}
+				*/
+				var getTouchPos = function(touch) {
 					var p = {
 						x: touch.pageX,
 						y: touch.pageY
 					}
 					return p;
-				}
+				};
 			
-				function getDirection(start, end) {
+
+				/**
+				* get the direction of the move
+				* @param {object} start Object {x,y} starting point of the touch cycle
+				* @param {object} end Object {x,y} current or ending point of the touch cycle
+				* @returns {string} one of the constants in fcC for up, down, left or right
+				*/
+				var getDirection = function(start, end) {
 					var dx = end.x - start.x;
 					var dy = end.y - start.y;
 					if (Math.abs(dx) >= Math.abs(dy)) {
@@ -291,47 +386,124 @@
 					} else {
 						return ( (dy > 0) ? fsC.DOWN : fsC.UP);
 					}
-				}
+				};
 				
-				function getDistanceObj(start, end) {
+
+				/**
+				* get the total distance moved since the start
+				* @param {object} start Object {x,y} starting point of the touch cycle
+				* @param {object} end Object {x,y} current or ending point of the touch cycle
+				* @returns {object} {x,y}
+				*/
+				var getDistanceObj = function(start, end) {
 					var x = end.x - start.x;
 					var y = end.y - start.y;
 					return {x:x, y:y};
-				}
+				};
 				
-				function getDistance(point) {
-					return Math.sqrt(Math.pow(point.x,2) + Math.pow(point.y,2));
-				}
-				
-				function distanceHasPassedThreshold() {
+
+				/**
+				* Check if the moved distance has passed the swipe-treshold
+				* @returns {boolean}
+				*/
+				var distanceHasPassedThreshold = function() {
 					var distance = fsData.distance,
 						dx = Math.abs(distance.x),
 						dy = Math.abs(distance.y);
 
 					return (Math.max(dx,dy) >= fsDefaults.swipeThreshold);
-				}
+				};
+
+
+				/**
+				* add a point to the array of points along the swipe trajectory for speed calculation
+				* @returns {undefined}
+				*/
+				var addTrackPoint = function() {
+					var maxPoints = 5,//number of points to keep track of
+						now = new Date().getTime(),
+						trackpoint = {
+							point: fsData.end,
+							timestamp: now
+						},
+						trackpoints = fsData.trackpoints;
+						
+					trackpoints.push(trackpoint);
+					if (trackpoints.length > maxPoints) {
+						trackpoints.shift();
+					}
+				};
+
+
+				/**
+				* calculate the current moving speed in px/msec
+				* @returns {undefined}
+				*/
+				var getCurrentSpeed = function() {
+					var speed = {x:0, y:0},
+						timeTreshold = 100,//treshold in msecs between first and last timestamp to use in calculation
+						trackpoints = fsData.trackpoints,
+						lastIdx = trackpoints.length-1,
+						firstPoint,
+						lastPoint = trackpoints[lastIdx],
+						lastTimestamp = lastPoint.timestamp,
+						earliestTimestamp = lastTimestamp - timeTreshold;
+						//console.log(lastPoint);
+
+					if (lastIdx > 0) {
+
+						for (var i=0; i<lastIdx; i++) {
+							firstPoint = trackpoints[i];
+							if (firstPoint.timestamp > earliestTimestamp) {
+								//then we can use this timestamp as start for speed calculation
+								break;
+							}
+						}
+
+						if (firstPoint !== lastPoint) {
+							//then we have at least 2 points
+							var dt = lastPoint.timestamp - firstPoint.timestamp,
+								dx = lastPoint.point.x - firstPoint.point.x,
+								dy = lastPoint.point.y - firstPoint.point.y,
+								speedX = dx/dt,
+								speedY = dy/dt;
+
+							speed = {
+								x: speedX,
+								y: speedY
+							};
+						}
+					}
+
+					return speed;
+				};
+				
 				
 			/*-- End helper functions --*/
 			
 
 			/*-- Start initialization --*/
 
-			var $this = $(this);
-			if ('ontouchstart' in window) {
-				try {
-					this.addEventListener('touchstart', touchStartHandler, false);
-					this.addEventListener('touchmove', touchMoveHandler, false);
-					this.addEventListener('touchend', touchEndHandler, false);
-				} catch(e) {
-					//touch not supported
+			var init = function() {
+				if ('ontouchstart' in window) {
+					try {
+						this.addEventListener('touchstart', touchStartHandler, false);
+						this.addEventListener('touchmove', touchMoveHandler, false);
+						this.addEventListener('touchend', touchEndHandler, false);
+					} catch(e) {
+						//touch not supported
+					}
+				} else {
+					//bind stuff to mouse events
+					$this.on('mousedown', mousedownHandler);
+					$this.on('mouseup', mouseupHandler);
 				}
-			} else {
-				//bind stuff to mouse events
-				$this.on('mousedown', mousedownHandler);
-				$this.on('mouseup', mouseupHandler);
 			}
+
+			init();
 				
-		});
-	};
+		});//this.each
+
+	};//$.fn[pluginName] = function(options)
 	
 })(jQuery);
